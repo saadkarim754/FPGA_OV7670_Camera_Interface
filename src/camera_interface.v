@@ -1,20 +1,95 @@
 `timescale 1ns / 1ps
 
-  module camera_interface(
-	input wire clk,clk_100,rst_n,
-	input wire[3:0] key, //key[1:0] for brightness control , key[3:2] for contrast control
-	//asyn_fifo IO
-	input wire rd_en,
-	output wire[9:0] data_count_r,
-	output wire[15:0] dout,
-	//camera pinouts
-	input wire cmos_pclk,cmos_href,cmos_vsync,
-	input wire[7:0] cmos_db,
-	inout cmos_sda,cmos_scl, //i2c comm wires
-	output wire cmos_rst_n, cmos_pwdn, cmos_xclk,
-	//Debugging
-	output wire[3:0] led
-    );
+module camera_interface(
+    input wire clk,           // System clock
+    input wire clk_100,       // 100 MHz clock for SDRAM
+    input wire rst_n,
+    input wire [3:0] key,     // For brightness/contrast control
+    // FIFO interface
+    input wire rd_en,
+    output wire [9:0] data_count_r,
+    output wire [15:0] dout,
+    // Camera pinouts
+    input wire cmos_pclk, cmos_href, cmos_vsync,
+    input wire [7:0] cmos_db,
+    inout cmos_sda, cmos_scl,
+    output wire cmos_rst_n, cmos_pwdn, cmos_xclk,
+    // Debugging
+    output wire [3:0] led,
+
+    // --- Pixel stream outputs for object tracking ---
+    output reg pixel_valid,
+    output reg frame_valid,
+    output reg [9:0] pixel_x,
+    output reg [9:0] pixel_y,
+    output reg [15:0] pixel_data
+);
+
+    // Internal registers for pixel assembly
+    reg [15:0] pixel_buf;
+    reg byte_toggle;
+    reg href_d, vsync_d;
+
+    // Pixel coordinate counters
+    reg [9:0] x_cnt, y_cnt;
+
+    // Frame valid logic
+    always @(posedge cmos_pclk or negedge rst_n) begin
+        if (!rst_n) begin
+            frame_valid <= 0;
+            vsync_d <= 0;
+        end else begin
+            vsync_d <= cmos_vsync;
+            // Frame valid is high when VSYNC is low (active video)
+            frame_valid <= ~cmos_vsync;
+        end
+    end
+
+    // Pixel and line counters, pixel assembly
+    always @(posedge cmos_pclk or negedge rst_n) begin
+        if (!rst_n) begin
+            x_cnt <= 0;
+            y_cnt <= 0;
+            pixel_x <= 0;
+            pixel_y <= 0;
+            pixel_valid <= 0;
+            pixel_data <= 0;
+            pixel_buf <= 0;
+            byte_toggle <= 0;
+            href_d <= 0;
+        end else begin
+            href_d <= cmos_href;
+
+            if (~frame_valid) begin
+                x_cnt <= 0;
+                y_cnt <= 0;
+            end else if (~cmos_href) begin
+                x_cnt <= 0;
+                if (href_d && ~cmos_href) // falling edge of HREF
+                    y_cnt <= y_cnt + 1;
+            end else if (cmos_href) begin
+                // Assemble RGB565 pixel: two bytes per pixel
+                if (!byte_toggle) begin
+                    pixel_buf[15:8] <= cmos_db;
+                    byte_toggle <= 1;
+                    pixel_valid <= 0;
+                end else begin
+                    pixel_buf[7:0] <= cmos_db;
+                    byte_toggle <= 0;
+                    pixel_valid <= 1;
+                    pixel_data <= {pixel_buf[15:8], cmos_db};
+                    pixel_x <= x_cnt;
+                    pixel_y <= y_cnt;
+                    x_cnt <= x_cnt + 1;
+                end
+            end
+
+            // If not assembling a pixel, pixel_valid is 0
+            if (!cmos_href || !frame_valid)
+                pixel_valid <= 0;
+        end
+    end
+
 	 //FSM state declarations
 	 localparam idle=0,
 					start_sccb=1,
