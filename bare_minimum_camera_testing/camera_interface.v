@@ -1,7 +1,8 @@
 `timescale 1ns / 1ps
 
 module camera_interface (
-    input  wire        clk,         // 50MHz
+    input  wire        clk,         // 50MHz - RAW clock input (only for DCM)
+	 output wire        clk_system_buffered_out,
     input  wire        rst_n,       // Active-low reset
     input  wire [3:0]  key,         // Optional input
     input  wire        cmos_pclk,
@@ -24,21 +25,22 @@ module camera_interface (
     // =========================================================================
     // Camera Control
     // =========================================================================
-    // Power down is active high, reset is active low
     assign cmos_pwdn  = 1'b0;  // Normal operation
     assign cmos_rst_n = 1'b1;  // Not in reset
 
     // =========================================================================
-    // Clock Generator (24 MHz)
+    // Clock Generator (24 MHz) - FIXED FOR DCM
     // =========================================================================
     wire clk_24;
     wire clk_locked;
+    wire clk_buffered; // This is the buffered system clock to use for all logic
 
-    clk_24mhz clk24_inst (
-        .clk_in(clk),
-        .rst(~rst_n),
-        .clk_out(clk_24),
-        .locked(clk_locked)
+    dcm24 clk24_inst (
+        .CLKIN_IN(clk),                    // 50MHz raw input (only for DCM)
+        .RST_IN(~rst_n),                   
+        .CLKIN_IBUFG_OUT(clk_buffered),    // Buffered 50MHz for system logic
+        .CLK0_OUT(clk_24),                 // 24MHz output for camera
+        .LOCKED_OUT(clk_locked)            
     );
 
     assign cmos_xclk = clk_24;  // Camera external clock
@@ -46,15 +48,12 @@ module camera_interface (
     // =========================================================================
     // SCCB Camera Configuration
     // =========================================================================
-    // Register address and data pairs for OV7670 configuration
-    // Each element is {register_address, register_value}
-    // Comprehensive set of registers for better image quality
     reg [15:0] config_regs [0:29];
     initial begin
         // Core functionality
         config_regs[0]  = 16'h1280; // COM7: Reset all registers
-        config_regs[1]  = 16'h1280; // COM7: Reset all registers (do twice to ensure reset)
-        config_regs[2]  = 16'h1204; // COM7: Set RGB output format, enable color bar
+        config_regs[1]  = 16'h1280; // COM7: Reset all registers (do twice)
+        config_regs[2]  = 16'h1204; // COM7: Set RGB output format
         config_regs[3]  = 16'h1100; // CLKRC: Use external clock directly
         config_regs[4]  = 16'h0C00; // COM3: Enable DCW & scaling
         config_regs[5]  = 16'h3E00; // COM14: Normal PCLK
@@ -76,9 +75,9 @@ module camera_interface (
         config_regs[17] = 16'h581E; // MTXS: Matrix sign and auto contrast
         
         // Additional settings
-        config_regs[18] = 16'h3A04; // TSLB: Set correct output data sequence (magic)
+        config_regs[18] = 16'h3A04; // TSLB: Set correct output data sequence
         config_regs[19] = 16'h3D80; // COM13: Gamma enable, UV auto adjust
-        config_regs[20] = 16'h1E31; // MVFP: Mirror/flip enable, black sun enable
+        config_regs[20] = 16'h1E31; // MVFP: Mirror/flip enable
         config_regs[21] = 16'h6B00; // DBLV: Bypass PLL
         config_regs[22] = 16'h7402; // REG74: Digital gain control
         config_regs[23] = 16'hB084; // RSVD: Magic value from OV
@@ -92,10 +91,9 @@ module camera_interface (
         config_regs[29] = 16'h6900; // GFIX: Fix gain control
     end
 
-    // Number of registers to configure
     localparam CONFIG_SIZE = 30;
 
-    // Configuration state machine
+    // Configuration state machine - ALL USING clk_buffered
     reg [4:0] config_index = 0;
     reg [2:0] sccb_state = 0;
     reg       sccb_start_transaction = 0;
@@ -105,8 +103,8 @@ module camera_interface (
     reg [7:0] sccb_reg_data;
     reg       config_done = 0;
     
-    // State machine for camera configuration
-    always @(posedge clk or negedge rst_n) begin
+    // State machine for camera configuration - USING clk_buffered
+    always @(posedge clk_buffered or negedge rst_n) begin
         if (!rst_n) begin
             sccb_state <= 0;
             config_index <= 0;
@@ -135,7 +133,7 @@ module camera_interface (
                 end
                 
                 2: begin // Wait for transaction start
-                    sccb_start_transaction <= 0; // Clear start signal
+                    sccb_start_transaction <= 0;
                     sccb_state <= 3;
                 end
                 
@@ -147,7 +145,7 @@ module camera_interface (
                 end
                 
                 4: begin // Configuration complete
-                    // Stay in this state
+                    // Stay here
                 end
                 
                 default: sccb_state <= 0;
@@ -155,15 +153,15 @@ module camera_interface (
         end
     end
 
-    // Instantiate the SCCB master
+    // Instantiate SCCB master with fixed counter width - USING clk_buffered
     sccb_master #(
-        .CLK_FREQ(50_000_000),  // 50 MHz system clock
-        .SCCB_FREQ(100_000)     // 100 kHz SCCB frequency for reliability
+        .CLK_FREQ(50_000_000),  
+        .SCCB_FREQ(100_000)     
     ) sccb_inst (
-        .clk(clk),
+        .clk(clk_buffered),  // CHANGED: Use buffered clock
         .rst_n(rst_n),
         .start_transaction(sccb_start_transaction),
-        .device_addr(8'h42),    // OV7670 write address (0x42)
+        .device_addr(8'h42),    
         .register_addr(sccb_reg_addr),
         .register_data(sccb_reg_data),
         .ready(sccb_ready),
@@ -173,7 +171,7 @@ module camera_interface (
     );
 
     // =========================================================================
-    // Pixel Stream Capture
+    // Pixel Stream Capture - USING cmos_pclk (from camera)
     // =========================================================================
     reg [15:0] pixel_buf;
     reg        byte_toggle;
@@ -181,7 +179,7 @@ module camera_interface (
     reg        href_d, vsync_d;
     reg [2:0]  frame_count = 0;
     
-    // Frame sync logic
+    // Frame sync logic - USING cmos_pclk
     always @(posedge cmos_pclk or negedge rst_n) begin
         if (!rst_n) begin
             frame_valid <= 0;
@@ -203,7 +201,7 @@ module camera_interface (
         end
     end
 
-    // Pixel capture state machine
+    // Pixel capture state machine - USING cmos_pclk
     always @(posedge cmos_pclk or negedge rst_n) begin
         if (!rst_n) begin
             x_cnt       <= 0;
@@ -260,3 +258,4 @@ module camera_interface (
     assign led = {config_done, frame_valid, cmos_href, pixel_valid};
 
 endmodule
+
