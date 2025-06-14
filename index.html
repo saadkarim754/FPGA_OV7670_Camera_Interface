@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autonomous Target Interception System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: "Warm Neutral" - A base of Slate gray and Zinc for a professional, tech-focused feel, with a calming Sky blue as the primary accent for interactive elements and highlights. This creates a clean, focused, and modern aesthetic suitable for a technical report. -->
+    <!-- Application Structure Plan: A single-page, scrolling application with a sticky top navigation bar. The structure prioritizes a narrative, user-driven exploration over the report's linear format. It begins with a high-level overview, then allows users to interactively explore the system's architecture and operating modes, dive into technical details via clickable cards, and finally, analyze limitations and future potential with comparative charts. This non-linear, thematic approach allows users to engage at their preferred level of depth, making complex information more digestible and accessible. -->
+    <!-- Visualization & Content Choices: 
+        - System Architecture (Organize/Inform): An interactive diagram built with HTML/CSS. Goal: Deconstruct the system's components. Interaction: Clicking a component reveals its details. Justification: More engaging than a static image, promotes discovery. Method: HTML divs with Tailwind, JS for click handling.
+        - Operating Modes (Compare/Inform): A dynamic Canvas animation. Goal: Visually demonstrate the difference between real-time tracking and predictive interception. Interaction: Buttons switch modes, triggering distinct animations. Justification: Translates the core functionality into a "live" simulation, making the concept intuitive. Method: HTML Canvas with Vanilla JS for state management and animation loop.
+        - Algorithm Comparison (Compare/Analyze): An interactive bar chart. Goal: Compare trajectory prediction algorithms by complexity and accuracy. Interaction: Chart.js tooltips provide details. Justification: Quantifies trade-offs more effectively than a text table. Method: Chart.js library.
+        - Technical Details (Inform): Clickable cards. Goal: Present dense technical information in a manageable way. Interaction: Clicking a card expands to show details. Justification: Reduces initial cognitive load and allows users to self-select topics. Method: HTML/Tailwind with JS for toggling visibility.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .nav-link.active { color: #0284c7; font-weight: 600; border-bottom-color: #0284c7; }
+        .component-box { transition: all 0.3s ease-in-out; }
+        .component-box.active { border-color: #0ea5e9; box-shadow: 0 0 15px rgba(14, 165, 233, 0.3); transform: scale(1.05); }
+        .tech-card { transition: all 0.3s ease-in-out; }
+        .tech-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+        .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 350px; max-height: 50vh; }
+        @media (min-width: 768px) { .chart-container { height: 450px; } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-700">
+
+    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-bold text-slate-800">Autonomous Interception System</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#overview" class="nav-link px-3 py-2 text-sm font-medium text-slate-500 hover:text-sky-600 border-b-2 border-transparent">Overview</a>
+                        <a href="#architecture" class="nav-link px-3 py-2 text-sm font-medium text-slate-500 hover:text-sky-600 border-b-2 border-transparent">Architecture</a>
+                        <a href="#modes" class="nav-link px-3 py-2 text-sm font-medium text-slate-500 hover:text-sky-600 border-b-2 border-transparent">Operating Modes</a>
+                        <a href="#deep-dive" class="nav-link px-3 py-2 text-sm font-medium text-slate-500 hover:text-sky-600 border-b-2 border-transparent">Deep Dive</a>
+                        <a href="#analysis" class="nav-link px-3 py-2 text-sm font-medium text-slate-500 hover:text-sky-600 border-b-2 border-transparent">Analysis & Future</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section id="overview" class="py-16 sm:py-24">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <p class="text-base font-semibold text-sky-600 tracking-wide uppercase">A Hybrid Embedded System</p>
+                <h2 class="mt-2 text-4xl font-extrabold text-slate-900 sm:text-5xl tracking-tight">Autonomous Target Interception</h2>
+                <p class="mt-6 max-w-3xl mx-auto text-xl text-slate-600">An exploration of a system that fuses real-time computer vision with hardware-accelerated motion control, simulating advanced autonomous guidance and interception. This project combines an ESP32-CAM for object detection and an FPGA for high-speed control and trajectory prediction.</p>
+                <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <div class="text-3xl font-bold text-sky-600">2 Modes</div>
+                        <p class="mt-2 text-slate-500">Operates in Real-Time Tracking or Predictive Interception.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <div class="text-3xl font-bold text-sky-600">50 Hz</div>
+                        <p class="mt-2 text-slate-500">PWM signal refresh rate for precise, real-time servo control.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md">
+                        <div class="text-3xl font-bold text-sky-600">10m Range</div>
+                        <p class="mt-2 text-slate-500">Bluetooth manual override simulates AWACS-style command.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="architecture" class="py-16 sm:py-24 bg-white">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-3xl font-extrabold text-slate-900 sm:text-4xl tracking-tight">System Architecture</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-lg text-slate-600">The system's effectiveness comes from a hybrid design, assigning tasks to the component best suited for the job. Click on a component below to see its role in the data workflow.</p>
+                </div>
+
+                <div class="mt-16 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                    <div class="space-y-4">
+                        <div id="component-esp32" class="component-box border-2 border-slate-200 p-4 rounded-lg cursor-pointer bg-slate-50">
+                            <h3 class="font-bold text-slate-800">1. ESP32-CAM (Vision)</h3>
+                            <p class="text-sm text-slate-500">Captures video, detects target centroid, and sends coordinates.</p>
+                        </div>
+                        <div class="flex justify-center">
+                            <span class="text-sky-500 text-2xl font-mono">&#8595;</span>
+                            <span class="ml-2 text-slate-500 text-sm self-center">UART Data (x, y)</span>
+                        </div>
+                        <div id="component-fpga" class="component-box border-2 border-slate-200 p-4 rounded-lg cursor-pointer bg-slate-50">
+                            <h3 class="font-bold text-slate-800">2. Spartan-3E FPGA (Control & Logic)</h3>
+                            <p class="text-sm text-slate-500">Receives data, selects mode, predicts trajectory, and computes servo angles.</p>
+                        </div>
+                         <div class="flex justify-center">
+                            <span class="text-sky-500 text-2xl font-mono">&#8595;</span>
+                             <span class="ml-2 text-slate-500 text-sm self-center">PWM Signals</span>
+                        </div>
+                        <div id="component-servos" class="component-box border-2 border-slate-200 p-4 rounded-lg cursor-pointer bg-slate-50">
+                             <h3 class="font-bold text-slate-800">3. Servo Motors (Actuation)</h3>
+                             <p class="text-sm text-slate-500">Receive PWM signals and physically move to track or intercept the target.</p>
+                        </div>
+                    </div>
+                    <div id="component-details" class="bg-slate-100 p-8 rounded-xl min-h-[300px]">
+                        <h3 id="details-title" class="text-2xl font-bold text-slate-900">Component Details</h3>
+                        <p id="details-text" class="mt-4 text-slate-600">Select a component from the diagram to learn more about its specific function and key characteristics within the system.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="modes" class="py-16 sm:py-24">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-3xl font-extrabold text-slate-900 sm:text-4xl tracking-tight">Operating Modes Simulation</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-lg text-slate-600">The system features two distinct guidance strategies. Select a mode to visualize how the system responds to a moving target.</p>
+                </div>
+
+                <div class="mt-12 flex justify-center space-x-4">
+                    <button id="mode-realtime-btn" class="bg-sky-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-sky-700 transition-colors shadow">Real-Time Tracking</button>
+                    <button id="mode-predictive-btn" class="bg-slate-200 text-slate-800 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-colors">Autonomous Interception</button>
+                </div>
+
+                <div class="mt-8 bg-white p-4 rounded-xl shadow-lg max-w-4xl mx-auto">
+                    <div class="aspect-w-16 aspect-h-9">
+                        <canvas id="simulation-canvas" class="rounded-lg bg-slate-800"></canvas>
+                    </div>
+                </div>
+                <div class="mt-6 text-center max-w-2xl mx-auto">
+                    <h3 id="mode-title" class="text-xl font-bold text-slate-800">Real-Time Tracking</h3>
+                    <p id="mode-description" class="mt-2 text-slate-600">In this mode, the system reacts directly to the target's current position. The FPGA continuously adjusts the servos to keep the aimer pointed at the target's last known coordinates, ensuring constant tracking.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="deep-dive" class="py-16 sm:py-24 bg-white">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-3xl font-extrabold text-slate-900 sm:text-4xl tracking-tight">Technical Deep Dive</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-lg text-slate-600">Explore the core technologies and algorithms that power the interception system. Click each card for more details.</p>
+                </div>
+                <div class="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div class="tech-card bg-slate-50 p-6 rounded-xl cursor-pointer" onclick="toggleDetail('detail-vision')">
+                        <h3 class="text-xl font-bold text-slate-800">Vision Subsystem</h3>
+                        <p class="mt-2 text-slate-500">Lightweight centroid detection on the ESP32-CAM.</p>
+                        <div id="detail-vision" class="hidden mt-4 text-sm text-slate-600 border-t pt-4">
+                            Uses grayscale thresholding and blob analysis to find the target's center. This is computationally cheap, enabling real-time performance on a constrained device but is sensitive to lighting and background clutter.
+                        </div>
+                    </div>
+                    <div class="tech-card bg-slate-50 p-6 rounded-xl cursor-pointer" onclick="toggleDetail('detail-fpga-logic')">
+                        <h3 class="text-xl font-bold text-slate-800">FPGA Logic Core</h3>
+                        <p class="mt-2 text-slate-500">Hardware-accelerated control and prediction.</p>
+                        <div id="detail-fpga-logic" class="hidden mt-4 text-sm text-slate-600 border-t pt-4">
+                            Custom Verilog modules handle UART communication and multi-channel PWM generation. A Finite State Machine (FSM) manages modes, while a dedicated logic block performs linear extrapolation for the predictive mode. This parallelism ensures low-latency control.
+                        </div>
+                    </div>
+                    <div class="tech-card bg-slate-50 p-6 rounded-xl cursor-pointer" onclick="toggleDetail('detail-comms')">
+                        <h3 class="text-xl font-bold text-slate-800">Communication Protocols</h3>
+                        <p class="mt-2 text-slate-500">Wired and wireless data links.</p>
+                        <div id="detail-comms" class="hidden mt-4 text-sm text-slate-600 border-t pt-4">
+                            <b>UART:</b> Transmits (x,y) coordinates from ESP32 to FPGA and telemetry to a PC GUI.
+                            <br><b>Bluetooth (HC-05):</b> Provides a wireless link for manual servo override, simulating remote command.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="analysis" class="py-16 sm:py-24">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                 <div class="text-center">
+                    <h2 class="text-3xl font-extrabold text-slate-900 sm:text-4xl tracking-tight">Analysis & Future Directions</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-lg text-slate-600">The current system is a strong proof-of-concept, but has limitations. The chart below visualizes the trade-offs in prediction algorithms, highlighting pathways for future enhancements.</p>
+                </div>
+
+                <div class="mt-16">
+                    <div class="chart-container bg-white p-4 rounded-xl shadow-lg">
+                        <canvas id="prediction-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="mt-16 grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-2xl font-bold text-slate-800">Current Limitations</h3>
+                        <ul class="mt-4 space-y-3 list-disc list-inside text-slate-600">
+                            <li><b>Simple Vision:</b> Centroid-only detection lacks size/shape data and is sensitive to the environment.</li>
+                            <li><b>Linear Prediction:</b> The trajectory prediction is inaccurate for targets that are maneuvering or not moving in a straight line.</li>
+                            <li><b>Integration Complexity:</b> Synchronizing diverse hardware and debugging across multiple domains is challenging.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-bold text-slate-800">Proposed Enhancements</h3>
+                        <ul class="mt-4 space-y-3 list-disc list-inside text-slate-600">
+                             <li><b>Advanced ML Models:</b> Deploy lightweight ML models (e.g., MobileNet) on the ESP32 for object classification, not just detection.</li>
+                             <li><b>Better Prediction:</b> Implement Kalman Filters on the FPGA for robust tracking of non-linear, agile targets.</li>
+                             <li><b>On-Chip Visualization:</b> Add a direct VGA output from the FPGA for real-time, low-latency debugging and monitoring.</li>
+                             <li><b>Data Logging:</b> Integrate SD card logging to capture telemetry for post-mission analysis and algorithm refinement.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-white">
+        <div class="container mx-auto py-8 px-4 sm:px-6 lg:px-8 text-center text-slate-500">
+            <p>Interactive report generated from technical documentation. This application is a conceptual visualization.</p>
+        </div>
+    </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const componentDetails = {
+        'component-esp32': {
+            title: 'ESP32-CAM: The Vision System',
+            text: 'The ESP32-CAM acts as the system\'s eye. It captures the visual feed, runs a lightweight image processing algorithm (grayscale/binary thresholding) to isolate the target, calculates the target\'s center point (centroid), and packages these (x, y) coordinates for transmission. Its main advantage is being a low-cost, all-in-one solution with Wi-Fi/Bluetooth capabilities, but it has limited processing power.'
+        },
+        'component-fpga': {
+            title: 'Spartan-3E FPGA: The Brain',
+            text: 'The FPGA is the core of control and computation. Its hardware-defined logic allows for true parallel processing. It receives coordinates from the ESP32, uses a Finite State Machine (FSM) to switch between tracking modes, generates four simultaneous high-frequency PWM signals for precise servo control, and executes the mathematical logic for trajectory prediction. Its determinism and low latency are critical for real-time response.'
+        },
+        'component-servos': {
+            title: 'Servo Motors: The Muscles',
+            text: 'These are the actuators that translate digital commands into physical motion. Each of the four servos receives a specific PWM signal from the FPGA, with the pulse width determining the exact angle of rotation. By controlling these servos, the system can aim a simulated turret or guide a "missile" towards the target or the predicted intercept point.'
+        }
+    };
+
+    const componentBoxes = document.querySelectorAll('.component-box');
+    const detailsTitle = document.getElementById('details-title');
+    const detailsText = document.getElementById('details-text');
+
+    componentBoxes.forEach(box => {
+        box.addEventListener('click', () => {
+            componentBoxes.forEach(b => b.classList.remove('active'));
+            box.classList.add('active');
+            const details = componentDetails[box.id];
+            detailsTitle.textContent = details.title;
+            detailsText.textContent = details.text;
+        });
+    });
+    
+    document.querySelector('#component-esp32').click();
+
+    window.toggleDetail = (detailId) => {
+        const detailElement = document.getElementById(detailId);
+        detailElement.classList.toggle('hidden');
+    }
+
+    const sections = document.querySelectorAll('section');
+    const navLinks = document.querySelectorAll('.nav-link');
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                navLinks.forEach(link => {
+                    link.classList.toggle('active', link.getAttribute('href').substring(1) === entry.target.id);
+                });
+            }
+        });
+    }, { rootMargin: '-50% 0px -50% 0px' });
+
+    sections.forEach(section => {
+        observer.observe(section);
+    });
+
+    const simulationCanvas = document.getElementById('simulation-canvas');
+    const ctx = simulationCanvas.getContext('2d');
+    let animationFrameId;
+
+    const modeRealtimeBtn = document.getElementById('mode-realtime-btn');
+    const modePredictiveBtn = document.getElementById('mode-predictive-btn');
+    const modeTitle = document.getElementById('mode-title');
+    const modeDescription = document.getElementById('mode-description');
+    
+    let simState = {
+        mode: 'realtime', // 'realtime' or 'predictive'
+        target: { x: 100, y: 100, vx: 2, vy: 1.5 },
+        tracker: { x: 100, y: 100 },
+        history: [],
+        prediction: { x: 0, y: 0 }
+    };
+    
+    function resizeCanvas() {
+        const container = simulationCanvas.parentElement;
+        simulationCanvas.width = container.clientWidth;
+        simulationCanvas.height = container.clientHeight;
+    }
+
+    function drawTarget() {
+        ctx.fillStyle = '#f43f5e'; // rose-500
+        ctx.beginPath();
+        ctx.arc(simState.target.x, simState.target.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    function drawTracker() {
+        ctx.strokeStyle = '#0ea5e9'; // sky-500
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(simState.tracker.x - 15, simState.tracker.y);
+        ctx.lineTo(simState.tracker.x + 15, simState.tracker.y);
+        ctx.moveTo(simState.tracker.x, simState.tracker.y - 15);
+        ctx.lineTo(simState.tracker.x, simState.tracker.y + 15);
+        ctx.stroke();
+    }
+
+    function drawPrediction() {
+        if (simState.mode !== 'predictive' || simState.history.length < 3) return;
+        
+        ctx.beginPath();
+        ctx.moveTo(simState.tracker.x, simState.tracker.y);
+        ctx.lineTo(simState.prediction.x, simState.prediction.y);
+        ctx.strokeStyle = 'rgba(234, 179, 8, 0.7)'; // yellow-500
+        ctx.setLineDash([5, 5]);
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        ctx.fillStyle = 'rgba(234, 179, 8, 0.7)';
+        ctx.beginPath();
+        ctx.arc(simState.prediction.x, simState.prediction.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    function updateSimulation() {
+        const { target, tracker } = simState;
+        
+        target.x += target.vx;
+        target.y += target.vy;
+
+        if (target.x < 10 || target.x > simulationCanvas.width - 10) target.vx *= -1;
+        if (target.y < 10 || target.y > simulationCanvas.height - 10) target.vy *= -1;
+
+        simState.history.push({ x: target.x, y: target.y });
+        if (simState.history.length > 20) simState.history.shift();
+        
+        const speed = 0.1;
+
+        if (simState.mode === 'realtime') {
+            tracker.x += (target.x - tracker.x) * speed;
+            tracker.y += (target.y - tracker.y) * speed;
+        } else if (simState.mode === 'predictive' && simState.history.length >= 3) {
+            const h = simState.history;
+            const p1 = h[h.length - 3];
+            const p2 = h[h.length - 1];
+            
+            const dx = (p2.x - p1.x) / 2;
+            const dy = (p2.y - p1.y) / 2;
+            
+            const predictionFactor = 40;
+            simState.prediction.x = target.x + dx * predictionFactor;
+            simState.prediction.y = target.y + dy * predictionFactor;
+
+            tracker.x += (simState.prediction.x - tracker.x) * speed;
+            tracker.y += (simState.prediction.y - tracker.y) * speed;
+        } else {
+             tracker.x += (target.x - tracker.x) * speed;
+             tracker.y += (target.y - tracker.y) * speed;
+        }
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, simulationCanvas.width, simulationCanvas.height);
+        
+        updateSimulation();
+        drawTarget();
+        drawPrediction();
+        drawTracker();
+        
+        animationFrameId = requestAnimationFrame(animate);
+    }
+
+    function startSimulation() {
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+        }
+        resizeCanvas();
+        animate();
+    }
+    
+    modeRealtimeBtn.addEventListener('click', () => {
+        simState.mode = 'realtime';
+        modeRealtimeBtn.classList.add('bg-sky-600', 'text-white');
+        modeRealtimeBtn.classList.remove('bg-slate-200', 'text-slate-800');
+        modePredictiveBtn.classList.add('bg-slate-200', 'text-slate-800');
+        modePredictiveBtn.classList.remove('bg-sky-600', 'text-white');
+        modeTitle.textContent = 'Real-Time Tracking';
+        modeDescription.textContent = "In this mode, the system reacts directly to the target's current position. The FPGA continuously adjusts the servos to keep the aimer pointed at the target's last known coordinates, ensuring constant tracking.";
+    });
+
+    modePredictiveBtn.addEventListener('click', () => {
+        simState.mode = 'predictive';
+        modePredictiveBtn.classList.add('bg-sky-600', 'text-white');
+        modePredictiveBtn.classList.remove('bg-slate-200', 'text-slate-800');
+        modeRealtimeBtn.classList.add('bg-slate-200', 'text-slate-800');
+        modeRealtimeBtn.classList.remove('bg-sky-600', 'text-white');
+        modeTitle.textContent = 'Autonomous Interception';
+        modeDescription.textContent = "The system stores previous target locations to calculate a motion vector. It then predicts a future intercept point and aims there, attempting to 'lead' the target. The yellow dot and dashed line show this prediction.";
+    });
+
+    startSimulation();
+    window.addEventListener('resize', () => {
+        // Debounce resize
+        cancelAnimationFrame(animationFrameId);
+        startSimulation();
+    });
+    
+    const predictionChartCtx = document.getElementById('prediction-chart').getContext('2d');
+    const predictionChartData = {
+        labels: ['Linear Extrapolation (Current)', 'Kalman Filter', 'Polynomial / Spline', 'AI (MPC/RL)'],
+        datasets: [{
+            label: 'Computational Cost',
+            data: [1, 4, 6, 10],
+            backgroundColor: 'rgba(56, 189, 248, 0.6)', // sky-400
+            borderColor: 'rgba(14, 165, 233, 1)', // sky-600
+            borderWidth: 1
+        }, {
+            label: 'Relative Accuracy (Non-Linear)',
+            data: [1, 7, 6, 9],
+            backgroundColor: 'rgba(244, 63, 94, 0.6)', // rose-500
+            borderColor: 'rgba(225, 29, 72, 1)', // rose-600
+            borderWidth: 1
+        }]
+    };
+    
+    new Chart(predictionChartCtx, {
+        type: 'bar',
+        data: predictionChartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Comparison of Trajectory Prediction Algorithms',
+                    font: { size: 16 },
+                    color: '#1e293b'
+                },
+                tooltip: {
+                    enabled: true,
+                    mode: 'index',
+                    intersect: false,
+                },
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Relative Score'
+                    }
+                }
+            }
+        }
+    });
+
+});
+</script>
+</body>
+</html>
